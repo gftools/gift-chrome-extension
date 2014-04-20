@@ -87,7 +87,7 @@ chrome.runtime.onInstalled.addListener(function(){
 	}else{
 		window.localStorage.setItem('setting', JSON.stringify(setting));
 	}
-	if(debug){
+
 		dbh.transaction(function(txn){
 			txn.executeSql('DROP TABLE IF EXISTS girls');
 			txn.executeSql('DROP TABLE IF EXISTS diffs');
@@ -170,7 +170,7 @@ CREATE TABLE wiki(
 		}, function(){
 			console.log('DDL Complete');
 		});
-	}
+
 });
 //	該当ページへのアクセスはUserAgent偽装
 chrome.webRequest.onBeforeSendHeaders.addListener(
