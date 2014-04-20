@@ -89,9 +89,9 @@ chrome.runtime.onInstalled.addListener(function(){
 	}
 
 		dbh.transaction(function(txn){
-			txn.executeSql('DROP TABLE IF EXISTS girls');
-			txn.executeSql('DROP TABLE IF EXISTS diffs');
-			txn.executeSql('DROP TABLE IF EXISTS wiki');
+//			txn.executeSql('DROP TABLE IF EXISTS girls');
+//			txn.executeSql('DROP TABLE IF EXISTS diffs');
+//			txn.executeSql('DROP TABLE IF EXISTS wiki');
 			txn.executeSql((function (){/*
 CREATE TABLE girls(
 	id integer primary key autoincrement,
