@@ -25,6 +25,10 @@ body{
 .pop{
 	color: orangered !important;
 }
+
+.ui-jqgrid .ui-jqgrid-pager .ui-pg-div span.ui-icon {
+	margin: 10px;
+}
 </style>
 <link rel="stylesheet" href="jquery-ui.min.css">
 <link rel="stylesheet" href="ui.jqgrid.css">
@@ -53,42 +57,72 @@ body{
 </div>
 
 <div id="dialog" title="検索">
-<form>
+	<form>
+		<h4>レア度</h4>
+		<div id="rarities">
+			<input id="N" type="checkbox" name="rarity" value="1" checked="checked"><label for="N">N</label>
+			<input id="HN" type="checkbox" name="rarity" value="2" checked="checked"><label for="HN">HN</label>
+			<input id="R" type="checkbox" name="rarity" value="3" checked="checked"><label for="R">R</label>
+			<input id="HR" type="checkbox" name="rarity" value="4" checked="checked"><label for="HR">HR</label>
+			<input id="SR" type="checkbox" name="rarity" value="5" checked="checked"><label for="SR">SR</label>
+			<input id="SSR" type="checkbox" name="rarity" value="6" checked="checked"><label for="SSR">SSR</label>
+		</div>
 
-<h4>レア度</h4>
-<div id="rarities">
-	<input id="N" type="checkbox" name="rarity" value="1" checked="checked"><label for="N">N</label>
-	<input id="HN" type="checkbox" name="rarity" value="2" checked="checked"><label for="HN">HN</label>
-	<input id="R" type="checkbox" name="rarity" value="3" checked="checked"><label for="R">R</label>
-	<input id="HR" type="checkbox" name="rarity" value="4" checked="checked"><label for="HR">HR</label>
-	<input id="SR" type="checkbox" name="rarity" value="5" checked="checked"><label for="SR">SR</label>
-	<input id="SSR" type="checkbox" name="rarity" value="6" checked="checked"><label for="SSR">SSR</label>
-</div>
+		<h4>素材用ガール</h4>
+		<div id="materials">
+			<input id="T2" type="radio" name="material" value="0" checked="checked"><label for="T2">含む</label>
+			<input id="T1" type="radio" name="material" value="2"><label for="T1">限定</label>
+			<input id="T0" type="radio" name="material" value="1"><label for="T0">除外</label>
+		</div>
 
-<h4>素材用ガール</h4>
-<div id="materials">
-	<input id="T2" type="radio" name="material" value="0" checked="checked"><label for="T2">含む</label>
-	<input id="T1" type="radio" name="material" value="2"><label for="T1">限定</label>
-	<input id="T0" type="radio" name="material" value="1"><label for="T0">除外</label>
-</div>
-
-<h4>属性</h4>
-<div id="spheres">
-	<input id="COOL" type="checkbox" name="sphere" value="1" checked="checked"><label for="COOL">COOL</label>
-	<input id="SWEET" type="checkbox" name="sphere" value="2" checked="checked"><label for="SWEET">SWEET</label>
-	<input id="POP" type="checkbox" name="sphere" value="3" checked="checked"><label for="POP">POP</label>
-</div>
+		<h4>属性</h4>
+		<div id="spheres">
+			<input id="COOL" type="checkbox" name="sphere" value="1" checked="checked"><label for="COOL">COOL</label>
+			<input id="SWEET" type="checkbox" name="sphere" value="2" checked="checked"><label for="SWEET">SWEET</label>
+			<input id="POP" type="checkbox" name="sphere" value="3" checked="checked"><label for="POP">POP</label>
+		</div>
 
 <!--
-<h4>名前</h4>
-<div id="titles">
-<select id="events" name="event"></select>
-<input id="name" name="name">
-</div>
+		<h4>名前</h4>
+		<div id="titles">
+			<select id="events" name="event"></select>
+			<input id="name" name="name">
+		</div>
 -->
-
-</form>
+	</form>
 </div>
+
+<div id="setting" title="設定">
+	<form>
+		<h4><label for="useragent">ユーザーエージェント</label></h4>
+		<input id="useragent" name="useragent" size="40">
+		<h4><label for="interval">インターバル</label></h4>
+		<input id="interval" name="interval" type="number" min="2" size="2">
+	</form>
+</div>
+
+<div id="confirm-sync" title="同期確認">
+	<p>既存のローカルデータを破棄し、サーバと同期します。</p>
+	<p>ギフト数によっては相当時間がかかりますがよろしいですか？</p>
+</div>
+
+<div id="confirm-diff" title="差分同期確認">
+	<p>サーバとの差分取得を行います。</p>
+	<p>ギフト数によっては相当時間がかかりますがよろしいですか？</p>
+</div>
+
+<div id="confirm-wiki" title="wiki同期確認">
+	<p>wikiページのデータ取得を行います。</p>
+</div>
+
+<div id="confirm-receive" title="ギフト取得確認">
+	<p>wikiページのデータ取得を行います。</p>
+</div>
+
+
+
+
+
 
 </body>
 </html>

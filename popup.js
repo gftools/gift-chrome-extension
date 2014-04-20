@@ -22,6 +22,82 @@ $(function(){
 			}
 	    }
 	});
+
+	$('#setting').dialog({
+		autoOpen: false,
+		buttons: {
+			'適用': function(){
+				$(this).dialog('close');
+			},
+			'閉じる': function(){
+				$(this).dialog('close');
+			}
+	    }
+	});
+
+	$('#confirm-sync').dialog({
+		autoOpen: false,
+		modal: true,
+		buttons: {
+			'同期': function(){
+				chrome.runtime.sendMessage({action: 'ui.sync'});
+				window.close();
+			},
+			'閉じる': function(){
+				$(this).dialog('close');
+			}
+	    }
+	});
+
+	$('#confirm-diff').dialog({
+		autoOpen: false,
+		modal: true,
+		buttons: {
+			'同期': function(){
+				chrome.runtime.sendMessage({action: 'ui.diff'});
+				window.close();
+			},
+			'閉じる': function(){
+				$(this).dialog('close');
+			}
+	    }
+	});
+
+	$('#confirm-wiki').dialog({
+		autoOpen: false,
+		modal: true,
+		buttons: {
+			'同期': function(){
+				chrome.runtime.sendMessage({action: 'ui.wiki'});
+				window.close();
+			},
+			'閉じる': function(){
+				$(this).dialog('close');
+			}
+	    }
+	});
+
+	$('#confirm-receive').dialog({
+		autoOpen: false,
+		modal: true,
+		buttons: {
+			'取得': function(){
+				var ids = $(this).getGridParam("selarrrow");
+				var giftIds = [];
+				for(var i = 0; i < ids.length; i ++){
+					var record = $(this).getRowData(ids[i]);
+					giftIds.push(record.giftId);
+				}
+				chrome.runtime.sendMessage({action: 'ui.receive', ids: giftIds});
+				window.close();
+			},
+			'閉じる': function(){
+				$(this).dialog('close');
+			}
+	    }
+	});
+
+
 	/**
 		イベントリストの取得
 	*/
@@ -210,7 +286,7 @@ $(function(){
 		shrinkToFit : true,
 		height: 480,
 		afterInsertRow: function(rowid, rowData){
-			console.log(rowid);
+//			console.log(rowid);
 			var rowElement = $('#' + rowid, $(this));
 			switch(parseInt(rowData.sphereId)){
 				case 1:
@@ -223,7 +299,10 @@ $(function(){
 					rowElement.addClass('pop');
 					break;
 			}
-		}
+		},
+		gridComplete: function(){
+			$('#pager1_left').css('width', '640px');
+		},
 	}).navGrid('#pager1', {
 		edit: false,
 		add: false,
@@ -234,7 +313,7 @@ $(function(){
 		multipleSearch: true,
 		closeAfterSearch: true
 	}).hideCol('cb').navButtonAdd('#pager1', {
-		'caption'       : '',
+		'caption'       : '検索',
 		'title'         : '検索',
 		'buttonicon'    : 'ui-icon-search',
 		'position'      : 'last',
@@ -243,7 +322,7 @@ $(function(){
 			$('#dialog').dialog('open');
 		}
 	}).navButtonAdd('#pager1', {
-		'caption'       : '',
+		'caption'       : '受取',
 		'title'         : '受取',
 		'buttonicon'    : 'ui-icon-check',
 		'position'      : 'last',
@@ -259,37 +338,47 @@ $(function(){
 			window.close();
 		}
 	}).navButtonAdd('#pager1', {
-		'caption'       : '',
+		'caption'       : '差分',
 		'title'         : '差分',
-		'buttonicon'    : 'ui-icon-refresh',
+		'buttonicon'    : 'ui-icon-arrowthickstop-1-e',
 		'position'      : 'last',
 		'cursor'        : 'pointer',
 		'onClickButton' : function(){
-			window.close();
-			chrome.runtime.sendMessage({action: 'ui.diff'});
+			$('#confirm-diff').dialog('open');
 		}
 	}).navButtonAdd('#pager1', {
-		'caption'       : '',
+		'caption'       : '同期',
 		'title'         : '同期',
 		'buttonicon'    : 'ui-icon-refresh',
 		'position'      : 'last',
 		'cursor'        : 'pointer',
 		'onClickButton' : function(){
-			window.close();
-			chrome.runtime.sendMessage({action: 'ui.sync'}, function(data){
-			});
+			$('#confirm-sync').dialog('open');
 		}
 	}).navButtonAdd('#pager1', {
-		'caption'       : '',
+		'caption'       : 'wiki',
 		'title'         : 'wiki',
-		'buttonicon'    : 'ui-icon-refresh',
+		'buttonicon'    : ' ui-icon-contact',
 		'position'      : 'last',
 		'cursor'        : 'pointer',
 		'onClickButton' : function(){
-			window.close();
-			chrome.runtime.sendMessage({action: 'ui.wiki'}, function(data){
-			});
+			$('#confirm-wiki').dialog('open');
 		}
+	}).navButtonAdd('#pager1', {
+		'caption'       : '設定',
+		'title'         : '設定',
+		'buttonicon'    : 'ui-icon-wrench',
+		'position'      : 'last',
+		'cursor'        : 'pointer',
+		'onClickButton' : function(){
+			chrome.runtime.sendMessage({action: 'ui.setting'}, function(data){
+				$('input[name="useragent"]').val(data.useragent);
+				$('input[name="interval"]').val(Math.floor(data.interval / 1000));
+				$('#setting').dialog('open');
+			});
+			console.log(this);
+		}
+	});
 //	}).navButtonAdd('#pager1', {
 //		'caption'       : '',
 //		'title'         : 'ギフトサーチ',
@@ -299,7 +388,8 @@ $(function(){
 //		'onClickButton' : function(){
 //			$('input[name="file"]').click();
 //		}
-	});
+//	});
+
 
 	$('#table2').jqGrid({
 		datatype: 'local',

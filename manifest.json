@@ -29,8 +29,6 @@
 		"persistent": true
 	},
 
-	"options_page": "options.html",
-
 	"page_action": {
 		"default_title": "Gift Walker",
 		"default_icon": "monochrome.png",

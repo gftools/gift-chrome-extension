@@ -71,19 +71,23 @@ var update = function(records, handler){
 };
 
 
-var setting = {
-	useragent: 'Mozilla/5.0 (Linux; Android 4.4; Nexus 5 Build/KRT16M) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/30.0.0.0 Mobile Safari/537.36',
-    disable_all: true,
-	interval: 2000,
-	wikipages: [
-		'http://www52.atwiki.jp/vcard/m/pages/29.html',
-		'http://www52.atwiki.jp/vcard/m/pages/30.html',
-		'http://www52.atwiki.jp/vcard/m/pages/31.html',
-		'http://www52.atwiki.jp/vcard/m/pages/32.html',
-		'http://www52.atwiki.jp/vcard/m/pages/33.html',
-		'http://www52.atwiki.jp/vcard/m/pages/34.html'
-	]
-};
+if(!window.localStorage.getItem('setting')){
+	window.localStorage.setItem('setting', JSON.stringify({
+		useragent: 'Mozilla/5.0 (Linux; Android 4.4; Nexus 5 Build/KRT16M) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/30.0.0.0 Mobile Safari/537.36',
+	    disable_all: true,
+		interval: 2000,
+		wikipages: [
+			'http://www52.atwiki.jp/vcard/m/pages/29.html',
+			'http://www52.atwiki.jp/vcard/m/pages/30.html',
+			'http://www52.atwiki.jp/vcard/m/pages/31.html',
+			'http://www52.atwiki.jp/vcard/m/pages/32.html',
+			'http://www52.atwiki.jp/vcard/m/pages/33.html',
+			'http://www52.atwiki.jp/vcard/m/pages/34.html'
+		]
+	}));
+}
+
+var setting = JSON.parse(window.localStorage.getItem('setting'));
 
 var UI = {
 	block: function(text){
@@ -248,6 +252,15 @@ chrome.webNavigation.onDOMContentLoaded.addListener(function(e){
 
 //	データ処理用イベントリスナ
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
+	/**
+	*
+	*	ギフト検索
+	*
+	*/
+	if(message.action == 'ui.setting'){
+		sendResponse(setting);
+		return true;
+	}
 	/**
 	*
 	*	イベント名リスト取得
