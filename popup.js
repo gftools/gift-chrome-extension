@@ -1,4 +1,17 @@
 $(function(){
+	if(!window.localStorage.getItem('expr')){
+		window.localStorage.setItem('expr', JSON.stringify({
+			material:0,
+			rarities:['1','2','3','4','5','6'],
+			sorts:[],
+			spheres:['1','2','3'],
+			name: '',
+			event: '',
+			cost_min: '',
+			cost_max: ''
+		}));
+	}
+
 	var worker = new Worker('worker.js');
 
 	$('#dialog').dialog({
@@ -245,17 +258,16 @@ $(function(){
 			chrome.runtime.sendMessage({action: 'ui.receive', ids: giftIds});
 			window.close();
 		}
-//	}).navButtonAdd('#pager1', {
-//		'caption'       : '',
-//		'title'         : '差分',
-//		'buttonicon'    : 'ui-icon-refresh',
-//		'position'      : 'last',
-//		'cursor'        : 'pointer',
-//		'onClickButton' : function(){
-//			window.close();
-//			chrome.runtime.sendMessage({action: 'ui.diff'}, function(data){
-//			});
-//		}
+	}).navButtonAdd('#pager1', {
+		'caption'       : '',
+		'title'         : '差分',
+		'buttonicon'    : 'ui-icon-refresh',
+		'position'      : 'last',
+		'cursor'        : 'pointer',
+		'onClickButton' : function(){
+			window.close();
+			chrome.runtime.sendMessage({action: 'ui.diff'});
+		}
 	}).navButtonAdd('#pager1', {
 		'caption'       : '',
 		'title'         : '同期',
@@ -480,38 +492,34 @@ $(function(){
 		}
 	});
 
-	//	初期データのリクエスト
-	chrome.runtime.sendMessage({action: 'ui.expr'}, function(expr){
-//		console.log(expr);
-		//	初期値のセット
-		$('input[name="material"]').val([expr.material]);
-		$('input[name="rarity"]').val(expr.rarities);
-		$('input[name="sphere"]').val(expr.spheres);
-		$('input[name="sort"]').val(expr.sorts);
-		$('input').on('change', function(){
-			var expr = {
-				rarities : [],
-				material: 2,
-				spheres: [],
-				sorts: []
-			};
-			expr.material = $('input[name="material"]:checked').val();
-
-			$('input[name="rarity"]:checked').each(function(){
-				expr.rarities.push($(this).val());
-			});
-			$('input[name="sphere"]:checked').each(function(){
-				expr.spheres.push($(this).val());
-			});
-			$('input[name="sort"]:checked').each(function(){
-				expr.sorts.push($(this).val());
-			});
-			window.localStorage.setItem('expr', JSON.stringify(expr));
-			//	データのリクエスト
-			chrome.runtime.sendMessage({action: 'ui.girls', expr: JSON.parse(window.localStorage.getItem('expr'))}, function(data){
-				console.log(data);
-				$('#table1').clearGridData().setGridParam({datatype: 'local', data: data.rows}).trigger("reloadGrid");
-			});
+	//	初期値のセット
+	var expr = JSON.parse(window.localStorage.getItem('expr'));
+	$('input[name="material"]').val([expr.material]);
+	$('input[name="rarity"]').val(expr.rarities);
+	$('input[name="sphere"]').val(expr.spheres);
+	$('input[name="sort"]').val(expr.sorts);
+	$('input').on('change', function(){
+		var expr = {
+			rarities : [],
+			material: 2,
+			spheres: [],
+			sorts: []
+		};
+		expr.material = $('input[name="material"]:checked').val();
+		$('input[name="rarity"]:checked').each(function(){
+			expr.rarities.push($(this).val());
+		});
+		$('input[name="sphere"]:checked').each(function(){
+			expr.spheres.push($(this).val());
+		});
+		$('input[name="sort"]:checked').each(function(){
+			expr.sorts.push($(this).val());
+		});
+		window.localStorage.setItem('expr', JSON.stringify(expr));
+		//	データのリクエスト
+		chrome.runtime.sendMessage({action: 'ui.girls', expr: JSON.parse(window.localStorage.getItem('expr'))}, function(data){
+			console.log(data);
+			$('#table1').clearGridData().setGridParam({datatype: 'local', data: data.rows}).trigger("reloadGrid");
 		});
 	});
 

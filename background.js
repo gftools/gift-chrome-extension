@@ -44,6 +44,33 @@ var transform = function(gift){
 	return data;
 };
 
+var update = function(records, handler){
+	dbh.transaction(function(txn){
+		for(var i = 0; i < records.length; i ++){
+			if(records[i].giftId){
+				var record = transform(records[i]);
+				var columns = [];
+				var placeholders = [];
+				var values = [];
+				for(var column in record){
+					columns.push(column);
+					placeholders.push('?');
+					values.push(record[column]);
+				}
+				txn.executeSql(
+					sprintf("INSERT OR REPLACE INTO diffs(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
+					values
+				);
+			}
+		}
+	}, function(e){
+		console.log(e);
+	}, function(){
+		console.log('DML Complete');
+	});
+};
+
+
 var setting = {
 	useragent: 'Mozilla/5.0 (Linux; Android 4.4; Nexus 5 Build/KRT16M) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/30.0.0.0 Mobile Safari/537.36',
     disable_all: true,
@@ -58,27 +85,40 @@ var setting = {
 	]
 };
 
-var blockUI = function(message){
-	chrome.tabs.query({url: '*://vcard.ameba.jp/*'}, function(tabs){
-		tabs.forEach(function(tab){
-		    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.begin', text: message}, function(response) {});
+var UI = {
+	block: function(text){
+		chrome.tabs.query({
+			url: '*://vcard.ameba.jp/giftbox*'
+		}, function(tabs){
+			tabs.forEach(function(tab){
+			    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.begin', text: text});
+				chrome.pageAction.hide(tab.id);
+			});
 		});
-	});
-};
-var setMessage = function(message){
-	chrome.tabs.query({url: '*://vcard.ameba.jp/*'}, function(tabs){
-		tabs.forEach(function(tab){
-		    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.set', text: message}, function(response) {});
+		enablePageAction = false;
+	},
+	set: function(text){
+		chrome.tabs.query({
+			url: '*://vcard.ameba.jp/giftbox*'
+		}, function(tabs){
+			tabs.forEach(function(tab){
+			    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.set', text: text});
+				chrome.pageAction.hide(tab.id);
+			});
 		});
-	});
-};
-var unblockUI = function(){
-	chrome.tabs.query({url: '*://vcard.ameba.jp/*'}, function(tabs){
-		tabs.forEach(function(tab){
-		    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.end'});
+	},
+	unblock: function(){
+		chrome.tabs.query({
+			url: '*://vcard.ameba.jp/giftbox*'
+		}, function(tabs){
+			tabs.forEach(function(tab){
+			    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.end'});
+				chrome.pageAction.show(tab.id);
+			});
 		});
-	});
-};
+		enablePageAction = true;
+	}
+}
 
 //	インストール時のハンドラ
 chrome.runtime.onInstalled.addListener(function(){
@@ -89,11 +129,8 @@ chrome.runtime.onInstalled.addListener(function(){
 	}
 
 		dbh.transaction(function(txn){
-//			txn.executeSql('DROP TABLE IF EXISTS girls');
-//			txn.executeSql('DROP TABLE IF EXISTS diffs');
-//			txn.executeSql('DROP TABLE IF EXISTS wiki');
 			txn.executeSql((function (){/*
-CREATE TABLE girls(
+CREATE TABLE IF NOT EXISTS girls(
 	id integer primary key autoincrement,
 	giftId varchar(255),
 	cardImgUrl text default '',
@@ -109,21 +146,21 @@ CREATE TABLE girls(
 	userId int not null default 0
 )
 */}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1]);
-			txn.executeSql('CREATE UNIQUE INDEX girls_giftId_index ON girls(giftId)');
-			txn.executeSql('CREATE INDEX girls_sphereId_index ON girls(sphereId)');
-			txn.executeSql('CREATE INDEX girls_name_index ON girls(name)');
-			txn.executeSql('CREATE INDEX girls_event_index ON girls(event)');
-			txn.executeSql('CREATE INDEX girls_shortName_index ON girls(shortName)');
-			txn.executeSql('CREATE INDEX girls_date_index ON girls(date)');
-			txn.executeSql('CREATE INDEX girls_rarity_index ON girls(rarity)');
-			txn.executeSql('CREATE INDEX girls_trainer_index ON girls(trainer)');
-			txn.executeSql('CREATE INDEX girls_userId_index ON girls(userId)');
+			txn.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS girls_giftId_index ON girls(giftId)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_sphereId_index ON girls(sphereId)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_name_index ON girls(name)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_event_index ON girls(event)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_shortName_index ON girls(shortName)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_date_index ON girls(date)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_rarity_index ON girls(rarity)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_trainer_index ON girls(trainer)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_userId_index ON girls(userId)');
 
 /**
 	差分の一時保存用
 */
 			txn.executeSql((function (){/*
-CREATE TABLE diffs(
+CREATE TABLE IF NOT EXISTS diffs(
 	id integer primary key autoincrement,
 	giftId varchar(255),
 	cardImgUrl text default '',
@@ -139,10 +176,10 @@ CREATE TABLE diffs(
 	userId int not null default 0
 )
 */}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1]);
-			txn.executeSql('CREATE UNIQUE INDEX diffs_giftId_index ON diffs(giftId)');
+			txn.executeSql('CREATE UNIQUE INDEX IF NOT EXISTS diffs_giftId_index ON diffs(giftId)');
 
 			txn.executeSql((function (){/*
-CREATE TABLE wiki(
+CREATE TABLE IF NOT EXISTS wiki(
 	id INT NOT NULL PRIMARY KEY,
 	name TEXT NOT NULL DEFAULT '',
 	level_max NOT NULL DEFAULT 0,
@@ -156,15 +193,11 @@ CREATE TABLE wiki(
 	cv TEXT NOT NULL DEFAULT ''
 )
 */}).toString().match(/[^]*\/\*([^]*)\*\/\}$/)[1]);
-			txn.executeSql('CREATE INDEX wiki_attack_index ON wiki(attack)');
-			txn.executeSql('CREATE INDEX wiki_defence_index ON wiki(defence)');
-			txn.executeSql('CREATE INDEX wiki_cost_index ON wiki(cost)');
-			txn.executeSql('CREATE INDEX wiki_yell_index ON wiki(yell)');
-			txn.executeSql('CREATE INDEX wiki_cv_index ON wiki(cv)');
-
-			txn.executeSql("DELETE FROM girls");
-			txn.executeSql("DELETE FROM diffs");
-			txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name IN('girls', 'diffs')");
+			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_attack_index ON wiki(attack)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_defence_index ON wiki(defence)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_cost_index ON wiki(cost)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_yell_index ON wiki(yell)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_cv_index ON wiki(cv)');
 		}, function(e){
 			console.log(e);
 		}, function(){
@@ -216,26 +249,38 @@ chrome.webNavigation.onDOMContentLoaded.addListener(function(e){
 //	データ処理用イベントリスナ
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	/**
-		初期検索条件の要求
+	*
+	*	イベント名リスト取得
+	*
 	*/
-	if(message.action == 'ui.expr'){
-		if(window.localStorage.getItem('expr')){
-			sendResponse(JSON.parse(window.localStorage.getItem('expr')));
-		}else{
-			sendResponse({
-				material:0,
-				rarities:['1','2','3','4','5','6'],
-				sorts:[],
-				spheres:['1','2','3'],
-				name: '',
-				event: '',
-				cost_min: '',
-				cost_max: ''
+	if(message.action == 'ui.events'){
+		var response = {
+			records: 0,
+			rows: []
+		};
+		dbh.transaction(function(txn){
+			txn.executeSql("SELECT distinct(girls.event) FROM girls", [], function(txn, result){
+				if(response.rows && result.rows.length){
+					response.records = result.rows.length;
+					for(var i = 0; i < result.rows.length; i ++){
+						response.rows.push(result.rows.item(i));
+					}
+					sendResponse(response);
+				}else{
+					sendResponse(response);
+				}
 			});
-		}
+		}, function(e){
+			console.log(e);
+		}, function(){
+			console.log('DML Complete');
+		});
+		return true;
 	}
 	/**
-		ギフト検索
+	*
+	*	ギフト検索
+	*
 	*/
 	if(message.action == 'ui.girls'){
 		var response = {
@@ -262,7 +307,6 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 			}
 			statement = statement + ' WHERE ' + wheres.join(' AND ');
 		}
-//		console.log(statement);
 		dbh.transaction(function(txn){
 			txn.executeSql(statement, [], function(txn, result){
 				if(result.rows && result.rows.length){
@@ -270,7 +314,6 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 					for(var i = 0; i < result.rows.length; i ++){
 						response.rows.push(result.rows.item(i));
 					}
-					console.log(response);
 					sendResponse(response);
 				}
 			});
@@ -282,7 +325,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	}
 
 	if(message.action == 'ui.import'){
-		blockUI('ギフトデータのインポート中です');
+		UI.block('ギフトデータのインポート中です');
 		dbh.transaction(function(txn){
 			for(var i = message.gift.length - 1; i >= 0; i --){
 				var record = transform(message.gift[i]);
@@ -301,115 +344,10 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 			}
 		}, function(e){
 			console.log(e);
-			unblockUI();
+			UI.unblock();
 		}, function(){
 			console.log('Import Complete');
-			unblockUI();
-		});
-	}
-
-	/**
-		イベント名リスト取得
-	*/
-	if(message.action == 'ui.events'){
-		var response = {
-			records: 0,
-			rows: []
-		};
-		dbh.transaction(function(txn){
-			txn.executeSql("SELECT distinct(girls.event) FROM girls", [], function(txn, result){
-				if(response.rows && result.rows.length){
-					response.records = result.rows.length;
-					for(var i = 0; i < result.rows.length; i ++){
-						response.rows.push(result.rows.item(i));
-					}
-					sendResponse(response);
-				}else{
-					sendResponse(response);
-				}
-			});
-		}, function(e){
-			console.log(e);
-		}, function(){
-			console.log('DML Complete');
-		});
-		return true;
-	}
-
-	//	データ更新
-	if(message.action == 'ui.diff'){
-		chrome.tabs.query({
-			url: '*://vcard.ameba.jp/giftbox*'
-		}, function(tabs){
-			if(tabs && Array.isArray(tabs) && tabs.length > 0){
-				blockUI('ギフトデータの取得準備中です');
-				var tab = tabs[0];
-				var page = 1;
-				var maxPage = 0;
-				var fetch = function(){
-					setMessage(sprintf('ギフトデータの取得中です(%d)', page));
-					chrome.tabs.sendMessage(tab.id, {
-						action: 'background.snapshot',
-						page: page
-					}, function(response){
-						if(response.resultStatus && response.resultStatus === 'success'){
-							if(response.data && response.data.maxPage)
-								maxPage = parseInt(response.data.maxPage);
-							if(response.data && response.data.results && Array.isArray(response.data.results)){
-								dbh.transaction(function(txn){
-									for(var i = 0; i < response.data.results.length; i ++){
-										if(response.data.results[i].giftId){
-											var record = transform(response.data.results[i]);
-											txn.executeSql("SELECT * FROM girls WHERE giftId = ?", [record.giftId], function(txn, result){
-												if(response.rows && result.rows.length){
-													stop = true;
-												}else{
-													var columns = [];
-													var placeholders = [];
-													var values = [];
-													for(var column in record){
-														columns.push(column);
-														placeholders.push('?');
-														values.push(record[column]);
-													}
-													txn.executeSql(
-														sprintf("INSERT OR REPLACE INTO diffs(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
-														values
-													);
-												}
-											});
-										}
-									}
-								}, function(e){
-									console.log(e);
-								}, function(){
-									console.log('DML Complete');
-									dbh.transaction(function(txn){
-									}, function(e){
-									}, function(){
-									});
-								});
-							}
-							page ++;
-							if(page > maxPage || stop){
-								stop = false;
-								enablePageAction = true;
-								chrome.tabs.query({
-									url: '*://vcard.ameba.jp/giftbox*'
-								}, function(tabs){
-									for(var i = 0; i < tabs.length; i ++){
-										chrome.pageAction.show(tabs[i].id);
-									}
-								});
-								unblockUI();
-							}else{
-								setTimeout(fetch, setting.interval + Math.floor( Math.random() * 1000));
-							}
-						}
-					});
-				}
-				fetch();
-			}
+			UI.unblock();
 		});
 	}
 	/**
@@ -418,15 +356,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	*
 	*/
 	if(message.action == 'ui.sync'){
-		enablePageAction = false;
-		chrome.tabs.query({
-			url: '*://vcard.ameba.jp/giftbox*'
-		}, function(tabs){
-			for(var i = 0; i < tabs.length; i ++){
-				chrome.pageAction.hide(tabs[i].id);
-			}
-		});
-		blockUI('ギフトデータの取得準備中です');
+		UI.block('ギフトデータの取得準備中です');
 		dbh.transaction(function(txn){
 			txn.executeSql("DELETE FROM girls");
 			txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'girls'");
@@ -434,10 +364,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 			console.log(e);
 		}, function(){
 		});
+		stop = false;
 		var page    = 1;
 		var maxPage = 0;
 		var fetch = function(){
-			setMessage(sprintf('ギフトデータの取得中です(%d/%d)', page, maxPage));
+			UI.set(sprintf('ギフトデータの取得中です(%d/%d)', page, maxPage));
 			/* 昔もらった順 */
 			$.ajax({
 				url: 'http://vcard.ameba.jp/giftbox/gift-search',
@@ -483,15 +414,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 				page ++;
 				if(page > maxPage || stop){
 					stop = false;
-					enablePageAction = true;
-					chrome.tabs.query({
-						url: '*://vcard.ameba.jp/giftbox*'
-					}, function(tabs){
-						for(var i = 0; i < tabs.length; i ++){
-							chrome.pageAction.show(tabs[i].id);
-						}
-					});
-					unblockUI();
+					UI.unblock();
 				}else{
 					setTimeout(fetch, setting.interval + Math.floor(Math.random() * 1000));
 				}
@@ -501,64 +424,181 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	}
 	/**
 	*
+	*	データ前方更新
+	*
+	*/
+	if(message.action == 'ui.diff'){
+		async.series([
+			function(nextProcess){
+				UI.block('ギフトデータの取得準備中です');
+				dbh.transaction(function(txn){
+					txn.executeSql("DELETE FROM diffs");
+					txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'diffs'");
+				}, function(e){
+					callback(true, e);
+				}, function(){
+					nextProcess(null, null);
+				});
+			},
+			function(nextProcess){
+				var page    = 1;
+				var maxPage = 0;
+				var hasNext = false;
+				async.doWhilst(function(nextPage){	//	process
+						UI.set(sprintf('ギフトデータの取得中です(%d/%d)', page, maxPage));
+						/* 最近もらった順にして検索 */
+						$.ajax({
+							url: 'http://vcard.ameba.jp/giftbox/gift-search',
+							type: 'POST',
+							data: {
+								sphere: 0,
+								sort: 0,
+								rarity: 0,
+								other: 0,
+								page: page || 1,
+								selectedGift: 1
+							}
+						}).done(function(result){
+							if(result.data && result.data.maxPage){
+								maxPage = parseInt(result.data.maxPage);
+								async.eachSeries(result.data.results, function(_record, nextRecord){
+									var record = transform(_record);
+									async.waterfall([
+										function(nextTransaction){
+											dbh.transaction(function(txn){
+												txn.executeSql(sprintf("SELECT * FROM girls WHERE giftId = '%s'", record.giftId), [],	function(txn, result){
+													console.log(result);
+													nextTransaction(result.rows.length, record);
+												});
+											});
+										},
+										function(record, nextTransaction){
+											console.log(record);
+											var columns = [];
+											var placeholders = [];
+											var values = [];
+											for(var column in record){
+												columns.push(column);
+												placeholders.push('?');
+												values.push(record[column]);
+											}
+											dbh.transaction(function(txn){
+												txn.executeSql(
+													sprintf("INSERT OR REPLACE INTO diffs(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
+													values
+												);
+											},
+											function(e){
+											},
+											function(){
+												nextTransaction();
+											});
+										}
+									], function(err){
+										nextRecord(err);
+									}); /* waterfall */
+								}, function(err){
+									if(err){
+										hasNext = false;
+									}else{
+										if(page < maxPage){
+											page ++;
+											hasNext = true;
+										}else{
+											hasNext = false;
+										}
+									}
+							        setTimeout(nextPage, setting.interval + Math.floor(Math.random() * 1000));
+								});	/* eachSeries */
+							}else{
+								maxPage = 0;
+								hasNext = false;
+						        setTimeout(nextPage, setting.interval + Math.floor(Math.random() * 1000));
+							}
+						});
+				    },
+				    function(){	//	test
+						return hasNext;
+				    },
+				    function(err){	//	callback
+    					nextProcess(null, null);
+				    }
+				);
+			},
+			function(nextProcess){
+				dbh.transaction(function(txn){
+					txn.executeSql("INSERT INTO girls(giftId, cardImgUrl, sphereId, name, event, shortName, date, rarity, trainer, typeId, description, userId) SELECT giftId, cardImgUrl, sphereId, name, event, shortName, date, rarity, trainer, typeId, description, userId FROM diffs ORDER BY id DESC");
+					txn.executeSql("DELETE FROM diffs");
+					txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'diffs'");
+				});
+				nextProcess();
+			}
+		], function(err, results){
+			console.log(results);
+			UI.unblock();
+		});
+	}
+	/**
+	*
 	*	wikiデータ同期
 	*
 	*/
 	if(message.action == 'ui.wiki'){
-		blockUI('wikiページの取得準備中です');
+		UI.block('wikiページの取得準備中です');
 		var i = 0;
-		var fetch = function(){
-			$.ajax({
-				url:  setting.wikipages[i],
-				type: 'GET'
-			}).done(function(html){
-				setMessage(sprintf("wikiページの処理中です(%d / %d)", i + 1, setting.wikipages.length));
-				$('tr', $(html)).filter(function(){
-					var tds = $('td', $(this));
-					if(tds.length < 14){
-						return;
-					}
-					var girl = {
-						id: parseInt($(tds[0]).text()) || 0,
-						name: $(tds[2]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || '',
-						level_max: parseInt($(tds[5]).text()) || 0,
-						heart_max: parseInt($(tds[6]).text()) || 0,
-						attack: parseInt($(tds[7]).text()) || 0,
-						defence: parseInt($(tds[8]).text()) || 0,
-						cost: parseInt($(tds[9]).text()) || 0,
-						attack_per_cost: parseInt($(tds[10]).text()) || 0,
-						defence_per_cost: parseInt($(tds[11]).text()) || 0,
-						yell: $(tds[12]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || '',
-						cv: $(tds[13]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || ''
-					};
-					var columns = [];
-					var placeholders = [];
-					var values = [];
-					for(var column in girl){
-						columns.push(column);
-						placeholders.push('?');
-						values.push(girl[column]);
-					}
-					dbh.transaction(function(txn){
-						txn.executeSql(
-							sprintf("INSERT OR REPLACE INTO wiki(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
-							values
-						);
-					}, function(e){
-						console.log(e);
-					}, function(){
-						console.log('DML Complete');
+		async.whilst(
+			function(){ return i < setting.wikipages.length; },
+			function(callback){
+				$.ajax({
+					url:  setting.wikipages[i],
+					type: 'GET'
+				}).done(function(html){
+					UI.set(sprintf("wikiページの処理中です(%d / %d)", i + 1, setting.wikipages.length));
+					$('tr', $(html)).filter(function(){
+						var tds = $('td', $(this));
+						if(tds.length < 14){
+							return;
+						}
+						var girl = {
+							id: parseInt($(tds[0]).text()) || 0,
+							name: $(tds[2]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || '',
+							level_max: parseInt($(tds[5]).text()) || 0,
+							heart_max: parseInt($(tds[6]).text()) || 0,
+							attack: parseInt($(tds[7]).text()) || 0,
+							defence: parseInt($(tds[8]).text()) || 0,
+							cost: parseInt($(tds[9]).text()) || 0,
+							attack_per_cost: parseInt($(tds[10]).text()) || 0,
+							defence_per_cost: parseInt($(tds[11]).text()) || 0,
+							yell: $(tds[12]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || '',
+							cv: $(tds[13]).text().toZenkanaCase().toPaddingCase().toHankakuCase() || ''
+						};
+						var columns = [];
+						var placeholders = [];
+						var values = [];
+						for(var column in girl){
+							columns.push(column);
+							placeholders.push('?');
+							values.push(girl[column]);
+						}
+						dbh.transaction(function(txn){
+							txn.executeSql(
+								sprintf("INSERT OR REPLACE INTO wiki(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
+								values
+							);
+						}, function(e){
+							console.log(e);
+						}, function(){
+							console.log('DML Complete');
+						});
 					});
+					i ++;
+					setTimeout(callback, setting.interval + Math.floor(Math.random() * 1000));
 				});
-				i ++;
-				if(i < setting.wikipages.length){
-					setTimeout(fetch, setting.interval + Math.floor( Math.random() * 1000));
-				}else{
-					unblockUI();
-				}
-			});
-		};
-		fetch();
+			},
+			function(err){
+				UI.unblock();
+			}
+		);
 	}
 	/**
 	*
@@ -566,19 +606,9 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	*
 	*/
 	if(message.action == 'ui.receive'){
-		console.log('ui.receive');
-//		console.log(message.ids);
 		var giftIds = message.ids;
-		blockUI('ギフトの取得準備中です');
+		UI.block('ギフトの取得準備中です');
 		if(giftIds.length > 0){
-			enablePageAction = false;
-			chrome.tabs.query({
-				url: '*://vcard.ameba.jp/giftbox*'
-			}, function(tabs){
-				for(var i = 0; i < tabs.length; i ++){
-					chrome.pageAction.hide(tabs[i].id);
-				}
-			});
 			$.ajax({
 				url:  'http://vcard.ameba.jp/giftbox?selectedGift=1&page=1',
 				type: 'GET'
@@ -592,10 +622,9 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 				var giftId = '';
 				if(token){
 					var i = 0;
-//					var max = 0;
 					var max = giftIds.length;
 					var fetch = function(){
-						setMessage(sprintf('ギフトの取得中です(%d/%d)', i + 1, max));
+						UI.set(sprintf('ギフトの取得中です(%d/%d)', i + 1, max));
 						giftId = giftIds[i];
 						$.ajax({
 							url:  'http://vcard.ameba.jp/giftbox/giftbox-system-select-recive',
@@ -632,28 +661,12 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 								});
 								i ++;
 								if(i >= max || stop){
-									enablePageAction = true;
-									chrome.tabs.query({
-										url: '*://vcard.ameba.jp/giftbox*'
-									}, function(tabs){
-										for(var i = 0; i < tabs.length; i ++){
-											chrome.pageAction.show(tabs[i].id);
-										}
-									});
-									unblockUI();
+									UI.unblock();
 								}else{
 									setTimeout(fetch, setting.interval + Math.floor(Math.random() * 1000));
 								}
 							}else{
-								enablePageAction = true;
-								chrome.tabs.query({
-									url: '*://vcard.ameba.jp/giftbox*'
-								}, function(tabs){
-									for(var i = 0; i < tabs.length; i ++){
-										chrome.pageAction.show(tabs[i].id);
-									}
-								});
-								unblockUI();
+								UI.unblock();
 							}
 						});
 					};
@@ -661,15 +674,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 				}
 			});
 		}else{
-			enablePageAction = true;
-			chrome.tabs.query({
-				url: '*://vcard.ameba.jp/giftbox*'
-			}, function(tabs){
-				for(var i = 0; i < tabs.length; i ++){
-					chrome.pageAction.show(tabs[i].id);
-				}
-			});
-			unblockUI();
+			UI.unblock();
 		}
 	}
 	/**
