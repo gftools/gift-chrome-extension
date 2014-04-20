@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<style>
+body{
+	min-width: 240px;
+}
+
+h3{
+	font-size: 10pt;
+	line-height: 100%;
+}
+
+.freetext{
+	font: inherit;
+	color: inherit;
+	text-align: inherit;
+	outline: none;
+	cursor: text;
+}
+</style>
+<link rel="stylesheet" href="jquery-ui.min.css">
+<script src="jquery-1.10.2.min.js"></script>
+<script src="jquery-ui-1.10.3.custom.min.js"></script>
+<script src="jquery-ui-i18n.min.js"></script>
+<script src="options.js"></script>
+</head>
+<body>
+<form>
+<fieldset>
+<legend>設定</legend>
+<div class="ui-widget">
+	<label for="useragent">ユーザーエージェント</label>
+	<input id="useragent" type="text" name="useragent" size="80">
+</div>
+
+<div class="ui-widget">
+	<label for="interval">通信インターバル</label>
+	<input id="interval" type="number" name="interval" value="2"><label for="interval">秒</label>
+</div>
+
+<div class="ui-widget">
+	<button type="button">適用</button>
+</div>
+
+</fieldset>
+</form>
+</body>
+</html>

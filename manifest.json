@@ -1,0 +1,49 @@
+{
+	"name": "Gift Walker",
+	"version": "0.0.1",
+	"manifest_version": 2,
+	"description": "ガールフレンド(仮)のギフト機能拡張",
+
+	"permissions":[
+		"contextMenus",
+		"tabs",
+		"webNavigation",
+		"webRequest",
+		"webRequestBlocking",
+		"*://*.ameba.jp/*",
+		"*://*.amebame.com/*",
+		"*://www52.atwiki.jp/vcard/*",
+		"unlimitedStorage"
+	],
+
+	"icons":{
+		"16": "monochrome.png",
+		"48": "monochrome.png",
+		"128": "monochrome.png"
+	},
+
+	"content_security_policy": "script-src 'self' 'unsafe-eval'; object-src 'self'",
+
+	"background":{
+		"scripts": ["jquery-1.10.2.min.js", "moment-with-langs.min.js", "kana-1.0.6-min.js", "sprintf.js", "async.js", "background.js"],
+		"persistent": true
+	},
+
+	"options_page": "options.html",
+
+	"page_action": {
+		"default_title": "Gift Walker",
+		"default_icon": "monochrome.png",
+		"default_popup": "popup.html"
+	},
+
+	"content_scripts":[
+		{
+			"matches": ["*://vcard.ameba.jp/giftbox*"],
+			"js": ["jquery-1.10.2.min.js", "kana-1.0.6-min.js", "jquery.blockUI.js", "sprintf.js", "content.js"],
+			"run_at": "document_end"
+		}
+	],
+
+	"web_accessible_resources": ["jquery-1.10.2.min.map"]
+}
