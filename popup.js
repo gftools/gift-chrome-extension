@@ -293,7 +293,7 @@ $(function(){
 		scroll: 1,
 		multiselect: true,
 		multikey: 'ctrlKey',
-		caption: "GF Gift",
+		caption: "Gift Walker",
 		pager: $('#pager1'),
 		shrinkToFit : true,
 		height: 480,
