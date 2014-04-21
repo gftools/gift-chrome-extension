@@ -1,10 +1,15 @@
-var dbh = window.openDatabase('gifts', 1, 'ギフト機能補完拡張', 50 * 1024 * 1024);
+var dbh = window.openDatabase('gifts', '0.1', 'ギフト機能補完拡張', 50 * 1024 * 1024);
+
 var maxPage = 0;
-var token = '';
 var userId = 0;
 var debug = false;
 var stop = false;
 var enablePageAction = true;
+
+var isPermanent = function(record){
+	//	[]つきのものは基本的に恒常ではないが・・・
+	return true;
+};
 
 var transform = function(gift){
 	var data = {
@@ -17,6 +22,7 @@ var transform = function(gift){
 		date        : gift.date,
 		rarity      : parseInt(gift.rarity),
 		trainer     : 0,
+		permanent   : 1,
 		typeId      : parseInt(gift.typeId),
 		description : gift.description.toZenkanaCase().toPaddingCase().toHankakuCase(),
 		userId      : 0
@@ -39,37 +45,78 @@ var transform = function(gift){
 	if(gift.name.indexOf('久保田友季') != -1) data.trainer = 1;
 	if(gift.name.indexOf('荒井薫') != -1) data.trainer = 1;
 	if(gift.name.indexOf('畑山政子') != -1) data.trainer = 1;
+	/*
+		恒常・非恒常判定
+	*/
+	if(data.event){
+		switch(data.event){
+			case '耳休め':
+			case '冬の日':
+			case 'スケボーガール':
+				data.permanent = 1;
+				break;
+			default:
+				data.permanent = 0;
+				break;
+		}
+	}else{
+		data.permanent = 1;
+		//	同名レア度違いで特殊カードが存在するもの
+		switch(data.name){
+			case '神崎ミコト':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '新垣雛菜':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '桐山優月':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '新田萌果':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '見吉奈央':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '玉井麗巳':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '霧生典子':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '五代律':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '螺子川来夢':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '西野彩音':
+				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '小日向いちご':
+				if(data.rarity == 4)	data.permanent = 0;	//	秘蔵写真
+				break;
+			case '掛井園美':
+				if(data.rarity == 3)	data.permanent = 0;	//	登校
+				break;
+			case '飛原鋭子':
+				if(data.rarity == 3)	data.permanent = 0;	//	登校
+				break;
+			case '竜ヶ崎珠里椏':
+				if(data.rarity == 3)	data.permanent = 0;	//	登校
+				break;
+			case '戸村美知留':
+				if(data.rarity == 3)	data.permanent = 0;	//	登校
+				break;
+			case '夢前春瑚':
+				if(data.rarity == 3)	data.permanent = 0;	//	登校
+				break;
+		}
+	}
 	var ids = gift.giftId.match(/([0-9]+)_(.+)/);
 	if(ids)	data.userId = parseInt(ids[1]);
 	return data;
 };
-
-var update = function(records, handler){
-	dbh.transaction(function(txn){
-		for(var i = 0; i < records.length; i ++){
-			if(records[i].giftId){
-				var record = transform(records[i]);
-				var columns = [];
-				var placeholders = [];
-				var values = [];
-				for(var column in record){
-					columns.push(column);
-					placeholders.push('?');
-					values.push(record[column]);
-				}
-				txn.executeSql(
-					sprintf("INSERT OR REPLACE INTO diffs(%s) VALUES(%s)", columns.join(', '), placeholders.join(', ')),
-					values
-				);
-			}
-		}
-	}, function(e){
-		console.log(e);
-	}, function(){
-		console.log('DML Complete');
-	});
-};
-
 
 if(!window.localStorage.getItem('setting')){
 	window.localStorage.setItem('setting', JSON.stringify({
@@ -121,7 +168,8 @@ var UI = {
 			});
 		});
 		enablePageAction = true;
-	}
+	},
+	stop: false
 }
 
 //	インストール時のハンドラ
@@ -145,6 +193,7 @@ CREATE TABLE IF NOT EXISTS girls(
 	date int default 0,
 	rarity int not null default 0,
 	trainer int not null default 0,
+	permanent int not null default 0,
 	typeId int not null default 0,
 	description text not null default '',
 	userId int not null default 0
@@ -158,8 +207,8 @@ CREATE TABLE IF NOT EXISTS girls(
 			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_date_index ON girls(date)');
 			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_rarity_index ON girls(rarity)');
 			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_trainer_index ON girls(trainer)');
+			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_permanent_index ON girls(permanent)');
 			txn.executeSql('CREATE INDEX IF NOT EXISTS girls_userId_index ON girls(userId)');
-
 /**
 	差分の一時保存用
 */
@@ -175,6 +224,7 @@ CREATE TABLE IF NOT EXISTS diffs(
 	date int default 0,
 	rarity int not null default 0,
 	trainer int not null default 0,
+	permanent int not null default 0,
 	typeId int not null default 0,
 	description text not null default '',
 	userId int not null default 0
@@ -254,12 +304,32 @@ chrome.webNavigation.onDOMContentLoaded.addListener(function(e){
 chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	/**
 	*
-	*	ギフト検索
+	*	設定読み出し
 	*
 	*/
-	if(message.action == 'ui.setting'){
+	if(message.action == 'ui.setting.get'){
 		sendResponse(setting);
 		return true;
+	}
+	/**
+	*
+	*	設定保存
+	*
+	*/
+	if(message.action == 'ui.setting.set'){
+		if(message.setting){
+			if(message.setting.useragent){
+				setting.useragent = message.setting.useragent;
+			}
+			if(message.setting.interval){
+				setting.interval = parseInt(message.setting.interval) * 1000;
+				if(!setting.interval){
+					setting.interval = 2000;
+				}
+			}
+			console.log(setting);
+			window.localStorage.setItem('setting', JSON.stringify(setting));
+		}
 	}
 	/**
 	*
@@ -300,26 +370,37 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 			records: 0,
 			rows: []
 		};
-		var statement = "SELECT girls.id, girls.giftId, girls.cardImgUrl, girls.sphereId, girls.name, girls.event, girls.shortName, girls.date, girls.rarity, girls.trainer, girls.typeId, girls.description, girls.userId, wiki.cost, wiki.attack, wiki.defence, wiki.yell, wiki.cv FROM girls LEFT OUTER JOIN wiki ON girls.typeId = wiki.id";
+//		var statement = "SELECT girls.id, girls.giftId, girls.cardImgUrl, girls.sphereId, girls.name, girls.event, girls.shortName, girls.date, girls.rarity, girls.trainer, girls.typeId, girls.description, girls.userId, wiki.cost, wiki.attack, wiki.defence, wiki.yell, wiki.cv FROM girls LEFT OUTER JOIN wiki ON girls.typeId = wiki.id";
+		var statement = "SELECT g.id, g.giftId, g.cardImgUrl, g.sphereId, g.name, g.event, g.shortName, g.date, g.rarity, g.trainer, g.permanent, g.typeId, g.description, g.userId, w.cost, w.attack, w.defence, w.yell, w.cv, s.stock FROM girls g LEFT OUTER JOIN wiki w ON g.typeId = w.id LEFT OUTER JOIN (SELECT typeId, COUNT(typeId) as stock FROM girls GROUP BY typeId) s ON g.typeId = s.typeId";
 		if(message.expr){
+			console.log(message.expr);
 			//	クエリの組み立て
 			var wheres = [];
 			if(message.expr.rarities && message.expr.rarities.length){
-				wheres.push(sprintf("girls.rarity IN(%s)", message.expr.rarities.join(', ')));
+				wheres.push(sprintf("g.rarity IN(%s)", message.expr.rarities.join(', ')));
 			}
 			if(message.expr.spheres){
-				wheres.push(sprintf("girls.sphereId IN(%s)", message.expr.spheres.join(', ')));
+				wheres.push(sprintf("g.sphereId IN(%s)", message.expr.spheres.join(', ')));
 			}
 			if(message.expr.material){
 				if(message.expr.material > 0){
-					wheres.push(sprintf("girls.trainer = %d", message.expr.material - 1));
+					wheres.push(sprintf("g.trainer = %d", message.expr.material - 1));
 				}
 			}
+			switch(parseInt(message.expr.permanent)){
+				case 0:
+					wheres.push("g.permanent = 0");
+					break;
+				case 1:
+					wheres.push("g.permanent = 1");
+					break;
+			}
 			if(userId){
-				wheres.push(sprintf("girls.userId = %d", parseInt(userId)));
+				wheres.push(sprintf("g.userId = %d", parseInt(userId)));
 			}
 			statement = statement + ' WHERE ' + wheres.join(' AND ');
 		}
+		console.log(statement);
 		dbh.transaction(function(txn){
 			txn.executeSql(statement, [], function(txn, result){
 				if(result.rows && result.rows.length){
@@ -336,7 +417,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 		});
 		return true;
 	}
-
+	/**
+	*
+	*	Windowsネイティブギフトサーチからのインポート
+	*
+	*/
 	if(message.action == 'ui.import'){
 		UI.block('ギフトデータのインポート中です');
 		dbh.transaction(function(txn){
@@ -356,10 +441,8 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 				);
 			}
 		}, function(e){
-			console.log(e);
 			UI.unblock();
 		}, function(){
-			console.log('Import Complete');
 			UI.unblock();
 		});
 	}
@@ -369,71 +452,85 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	*
 	*/
 	if(message.action == 'ui.sync'){
-		UI.block('ギフトデータの取得準備中です');
-		dbh.transaction(function(txn){
-			txn.executeSql("DELETE FROM girls");
-			txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'girls'");
-		}, function(e){
-			console.log(e);
-		}, function(){
-		});
-		stop = false;
-		var page    = 1;
-		var maxPage = 0;
-		var fetch = function(){
-			UI.set(sprintf('ギフトデータの取得中です(%d/%d)', page, maxPage));
-			/* 昔もらった順 */
-			$.ajax({
-				url: 'http://vcard.ameba.jp/giftbox/gift-search',
-				type: 'POST',
-				data: {
-					sphere: 0,
-					sort: 1,
-					rarity: 0,
-					other: 0,
-					page: page || 1,
-					selectedGift: 1
-				}
-			}).done(function(result){
-				if(result.resultStatus && result.resultStatus === 'success'){
-					if(result.data && result.data.maxPage)
-						maxPage = parseInt(result.data.maxPage);
-					dbh.transaction(function(txn){
-						for(var i = 0; i < result.data.results.length; i ++){
-							var record = transform(result.data.results[i]);
-							var columns = [];
-							var placeholders = [];
-							var values = [];
-							for(var column in record){
-								columns.push(column);
-								placeholders.push('?');
-								values.push(record[column]);
+		async.series([
+			function(nextProcess){
+				UI.block('ギフトデータの取得準備中です');
+				dbh.transaction(function(txn){
+					txn.executeSql("DELETE FROM girls");
+					txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'girls'");
+				}, function(e){
+					nextProcess(e);
+				}, function(){
+					nextProcess();
+				});
+			},
+			function(nextProcess){
+				var page    = 1;
+				var maxPage = 0;
+				async.doWhilst(
+					function(nextPage){	//	process
+						UI.set(sprintf('ギフトデータの取得中です(%d/%d)', page, maxPage));
+						/* 昔もらった順 */
+						$.ajax({
+							url: 'http://vcard.ameba.jp/giftbox/gift-search',
+							type: 'POST',
+							data: {
+								sphere: 0,
+								sort: 1,
+								rarity: 0,
+								other: 0,
+								page: page || 1,
+								selectedGift: 1
 							}
-							txn.executeSql(
-								sprintf(
-									"INSERT OR REPLACE INTO girls(%s) VALUES(%s)",
-									columns.join(', '),
-									placeholders.join(', ')
-								),
-								values
-							);
-						}
-					}, function(e){
-						console.log(e);
-					}, function(){
-						console.log('DML Complete');
-					});
-				}
-				page ++;
-				if(page > maxPage || stop){
-					stop = false;
-					UI.unblock();
-				}else{
-					setTimeout(fetch, setting.interval + Math.floor(Math.random() * 1000));
-				}
-			});
-		}
-		fetch();
+						}).done(function(result){
+							if(result.resultStatus && result.resultStatus === 'success'){
+								if(result.data && result.data.maxPage){
+									maxPage = parseInt(result.data.maxPage);
+								}
+								dbh.transaction(function(txn){
+									async.eachSeries(result.data.results, function(_record, nextRecord){
+										var record = transform(_record);
+										var columns = [];
+										var placeholders = [];
+										var values = [];
+										for(var column in record){
+											columns.push(column);
+											placeholders.push('?');
+											values.push(record[column]);
+										}
+										txn.executeSql(
+											sprintf(
+												"INSERT OR REPLACE INTO girls(%s) VALUES(%s)",
+												columns.join(', '),
+												placeholders.join(', ')
+											),
+											values,
+											function(txn, rs){
+												nextRecord();
+											}
+										);
+									});
+								}, function(e){
+									console.log(e);
+								}, function(){
+									console.log('DML Complete');
+									page ++;
+									setTimeout(nextPage, setting.interval + Math.floor(Math.random() * 1000));
+								});
+							}
+						});
+					},
+					function(){	//	test
+						return page <= maxPage;
+					},
+					function(err){	//	callback
+						nextProcess(err);
+					}
+				);	/**	doWhilst */
+			}
+		], function(err){
+			UI.unblock();
+		});	/**	series */
 	}
 	/**
 	*
@@ -448,7 +545,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 					txn.executeSql("DELETE FROM diffs");
 					txn.executeSql("UPDATE sqlite_sequence SET seq = 0 WHERE name = 'diffs'");
 				}, function(e){
-					callback(true, e);
+					nextProcess(true, e);
 				}, function(){
 					nextProcess(null, null);
 				});
@@ -464,11 +561,11 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 							url: 'http://vcard.ameba.jp/giftbox/gift-search',
 							type: 'POST',
 							data: {
-								sphere: 0,
-								sort: 0,
-								rarity: 0,
-								other: 0,
-								page: page || 1,
+								sphere      : 0,
+								sort        : 0,
+								rarity      : 0,
+								other       : 0,
+								page        : page || 1,
 								selectedGift: 1
 							}
 						}).done(function(result){
@@ -620,75 +717,84 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	*/
 	if(message.action == 'ui.receive'){
 		var giftIds = message.ids;
-		UI.block('ギフトの取得準備中です');
-		if(giftIds.length > 0){
-			$.ajax({
-				url:  'http://vcard.ameba.jp/giftbox?selectedGift=1&page=1',
-				type: 'GET'
-			}).done(function(html){
-				var $container = $('<div/>');
-				var $html = $.parseHTML(html);
-				$container.append($html);
-				var $token = $container.find('#__token');
-				token = $($token).val();
-				console.log('token=' + token);
-				var giftId = '';
-				if(token){
-					var i = 0;
-					var max = giftIds.length;
-					var fetch = function(){
-						UI.set(sprintf('ギフトの取得中です(%d/%d)', i + 1, max));
-						giftId = giftIds[i];
-						$.ajax({
-							url:  'http://vcard.ameba.jp/giftbox/giftbox-system-select-recive',
-							type: 'POST',
-							data: {
-								sort: 0,
-								sphere: 0,
-								rarity: 0,
-								other: 0,
-								giftId: giftId,
-								token: token,
-								selectedGift: 1,
-								page: 1,
-								submit: '受け取る'
-							}
-						}).done(function(html){
-							var $container = $('<div/>');
-							var $html = $.parseHTML(html);
-							$container.append($html);
-							var $token = $container.find('#__token');
-							token = $($token).val();
-							//	次のトークンがとれたら成功とみなす
-							if(token){
-								dbh.transaction(function(txn){
-									console.log('giftId=' + giftId);
-									txn.executeSql(
-										"DELETE FROM girls WHERE giftId = ?",
-										[ giftId ]
-									);
-								}, function(e){
-									console.log(e);
-								}, function(){
-									console.log('DML Complete');
-								});
-								i ++;
-								if(i >= max || stop){
-									UI.unblock();
-								}else{
-									setTimeout(fetch, setting.interval + Math.floor(Math.random() * 1000));
-								}
-							}else{
-								UI.unblock();
-							}
-						});
-					};
-					fetch();
-				}
-			});
-		}else{
+		async.waterfall([
+			function(nextProcess){
+				UI.block('ギフトの取得準備中です');
+				$.ajax({
+					url:  'http://vcard.ameba.jp/giftbox?selectedGift=1&page=1',
+					type: 'GET'
+				}).done(function(html){
+					var $container = $('<div/>');
+					var $html = $.parseHTML(html);
+					$container.append($html);
+					var $token = $container.find('#__token');
+					token = $($token).val();
+					if(token){
+						nextProcess(null, token);
+					}else{
+						nextProcess(true, null);
+					}
+				});
+			},
+			function(token, nextProcess){
+				var i = 0;
+				async.eachSeries(giftIds, function(giftId, nextRecord){
+					UI.set(sprintf("ギフトの取得中です(%d / %d)", i + 1, giftIds.length));
+					$.ajax({
+						url:  'http://vcard.ameba.jp/giftbox/giftbox-system-select-recive',
+						type: 'POST',
+						data: {
+							sort: 0,
+							sphere: 0,
+							rarity: 0,
+							other: 0,
+							giftId: giftId,
+							token: token,
+							selectedGift: 1,
+							page: 1,
+							submit: '受け取る'
+						}
+					}).done(function(html){
+						//	次のデータ取得条件は2つ
+						//	1.受け取りが押せる状態になっていること
+						//	2.次のトークンがとれていること
+						//	若林さんや受け取りが押せない場合はここでストップする
+						var $container = $('<div/>');
+						var $html = $.parseHTML(html);
+						$container.append($html);
+						var $token = $container.find('#__token');
+						token = $($token).val();
+						var form = $container.find('form[action="/giftbox/giftbox-system-select-recive"]').first();
+						if(token && form){
+							dbh.transaction(function(txn){
+								console.log('Received giftId=' + giftId);
+								txn.executeSql(
+									"DELETE FROM girls WHERE giftId = ?",
+									[ giftId ]
+								);
+							}, function(e){
+								setTimeout(function(){
+									i ++;
+									nextRecord();
+								}, setting.interval + Math.floor(Math.random() * 1000));
+							}, function(){
+								setTimeout(function(){
+									i ++;
+									nextRecord();
+								}, setting.interval + Math.floor(Math.random() * 1000));
+							});
+						}else{
+							i ++;
+							nextRecord(true);
+						}
+					});
+				}, function(err){
+					nextProcess(err);
+				});
+			}
+		], function(err){
 			UI.unblock();
-		}
+		});
 	}
 	/**
 		連続データ取得のストップ

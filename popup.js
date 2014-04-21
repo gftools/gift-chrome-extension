@@ -1,7 +1,8 @@
 $(function(){
 	if(!window.localStorage.getItem('expr')){
 		window.localStorage.setItem('expr', JSON.stringify({
-			material:0,
+			material: 2,
+			permanent: 2,
 			rarities:['1','2','3','4','5','6'],
 			sorts:[],
 			spheres:['1','2','3'],
@@ -27,6 +28,10 @@ $(function(){
 		autoOpen: false,
 		buttons: {
 			'適用': function(){
+				chrome.runtime.sendMessage({action: 'ui.setting.set', setting: {
+					useragent: $('input[name="useragent"]').val(),
+					interval: $('input[name="interval"]').val()
+				}});
 				$(this).dialog('close');
 			},
 			'閉じる': function(){
@@ -114,7 +119,7 @@ $(function(){
 	*/
 	$('#table1').jqGrid({
 		datatype: 'local',
-		colNames:['ID','ギフトID', '属性', '名前', 'レ', 'コ', '攻', '守', '援', '日付','説明', '素材'],
+		colNames:['ID','ギフトID', '数', '属性', '名前', 'レ', 'コ', '攻', '守', '援', '日付','説明', '素材'],
 		colModel:[
 			{
 				name: 'id',
@@ -129,6 +134,13 @@ $(function(){
 				index: 'giftId',
 				width: 60,
 				hidden: true
+			},
+			{
+				name: 'stock',
+				index: 'stock',
+				width: 40,
+				formatter: 'int',
+				sorttype: 'int'
 			},
 			{
 				name:'sphereId',
@@ -371,7 +383,7 @@ $(function(){
 		'position'      : 'last',
 		'cursor'        : 'pointer',
 		'onClickButton' : function(){
-			chrome.runtime.sendMessage({action: 'ui.setting'}, function(data){
+			chrome.runtime.sendMessage({action: 'ui.setting.get'}, function(data){
 				$('input[name="useragent"]').val(data.useragent);
 				$('input[name="interval"]').val(Math.floor(data.interval / 1000));
 				$('#setting').dialog('open');
@@ -592,10 +604,12 @@ $(function(){
 		var expr = {
 			rarities : [],
 			material: 2,
+			permanent: 2,
 			spheres: [],
 			sorts: []
 		};
 		expr.material = $('input[name="material"]:checked').val();
+		expr.permanent = $('input[name="permanent"]:checked').val();
 		$('input[name="rarity"]:checked').each(function(){
 			expr.rarities.push($(this).val());
 		});
@@ -605,9 +619,10 @@ $(function(){
 		$('input[name="sort"]:checked').each(function(){
 			expr.sorts.push($(this).val());
 		});
+		console.log(expr);
 		window.localStorage.setItem('expr', JSON.stringify(expr));
 		//	データのリクエスト
-		chrome.runtime.sendMessage({action: 'ui.girls', expr: JSON.parse(window.localStorage.getItem('expr'))}, function(data){
+		chrome.runtime.sendMessage({action: 'ui.girls', expr: expr}, function(data){
 			console.log(data);
 			$('#table1').clearGridData().setGridParam({datatype: 'local', data: data.rows}).trigger("reloadGrid");
 		});
@@ -623,6 +638,7 @@ $(function(){
 	$('#materials').buttonset();
 	$('#spheres').buttonset();
 	$('#options').buttonset();
+	$('#permanent').buttonset();
 
 	$('form[name="form2"]').hide();
 	$('#import').hide();
