@@ -179,6 +179,7 @@ var UI = {
 		}, function(tabs){
 			tabs.forEach(function(tab){
 			    chrome.tabs.sendMessage(tab.id, {action: 'ui.block.end'});
+				chrome.tabs.reload(tab.id);
 				chrome.pageAction.show(tab.id);
 			});
 		});
@@ -267,6 +268,17 @@ CREATE TABLE IF NOT EXISTS wiki(
 			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_cost_index ON wiki(cost)');
 			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_yell_index ON wiki(yell)');
 			txn.executeSql('CREATE INDEX IF NOT EXISTS wiki_cv_index ON wiki(cv)');
+
+			/**
+				チェック漏れを強制的に修正
+			*/
+			txn.executeSql('UPDATE girls SET permanent = 0 WHERE typeId = 142');	//	デート報酬明音
+			txn.executeSql('UPDATE girls SET permanent = 0 WHERE typeId = 202');	//	デート報酬苗
+			txn.executeSql('UPDATE girls SET permanent = 0 WHERE typeId = 289');	//	デート報酬五十鈴
+			txn.executeSql('UPDATE girls SET permanent = 0 WHERE typeId = 451');	//	芹那
+			txn.executeSql('UPDATE girls SET permanent = 0 WHERE typeId = 616');	//	吉野屋先生
+
+
 		}, function(e){
 			console.log(e);
 		}, function(){

@@ -22,6 +22,7 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 	}
 	if(message.action == 'ui.block.end'){
 		$.unblockUI();
+		window.location.reload();
 	}
 
 	//	ユーザIDの取得
