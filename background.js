@@ -422,6 +422,14 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 					wheres.push("g.permanent = 1");
 					break;
 			}
+
+			if(message.expr.event){
+				wheres.push(sprintf("g.event = '%s'", message.expr.event));
+			}
+			if(message.expr.name){
+				wheres.push(sprintf("g.name LIKE '%%%s%%'", message.expr.name));
+			}
+
 			if(userId){
 				wheres.push(sprintf("g.userId = %d", parseInt(userId)));
 			}

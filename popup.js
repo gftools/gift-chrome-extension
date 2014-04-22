@@ -600,7 +600,11 @@ $(function(){
 	$('input[name="rarity"]').val(expr.rarities);
 	$('input[name="sphere"]').val(expr.spheres);
 	$('input[name="sort"]').val(expr.sorts);
-	$('input').on('change', function(){
+
+	$('select[name="event"]').val(expr.event);
+	$('input[name="name"]').val(expr.name);
+
+	var query = function(){
 		var expr = {
 			rarities : [],
 			material: 2,
@@ -619,14 +623,22 @@ $(function(){
 		$('input[name="sort"]:checked').each(function(){
 			expr.sorts.push($(this).val());
 		});
+
+		expr.event = $('select[name="event"]').val();
+		expr.name = $('input[name="name"]').val();
+
 		console.log(expr);
+
 		window.localStorage.setItem('expr', JSON.stringify(expr));
 		//	データのリクエスト
 		chrome.runtime.sendMessage({action: 'ui.girls', expr: expr}, function(data){
 			console.log(data);
 			$('#table1').clearGridData().setGridParam({datatype: 'local', data: data.rows}).trigger("reloadGrid");
 		});
-	});
+	};
+
+	$('input').on('change', query);
+	$('select').on('change', query);
 
 	worker.onmessage = function(event){
 		$('#gift').hide();
