@@ -63,6 +63,21 @@ var transform = function(gift){
 		data.permanent = 1;
 		//	同名レア度違いで特殊カードが存在するもの
 		switch(data.name){
+			case '不知火五十鈴':
+				if(data.rarity == 4)	data.permanent = 0;	//	デート報酬
+				break;
+			case '櫻井明音':
+				if(data.rarity == 4)	data.permanent = 0;	//	デート報酬
+				break;
+			case '優木苗':
+				if(data.rarity == 4)	data.permanent = 0;	//	デート報酬
+				break;
+			case '芹那':
+				if(data.rarity == 3)	data.permanent = 0;	//	特殊
+				break;
+			case '吉野屋先生':
+				if(data.rarity == 3)	data.permanent = 0;	//	特殊
+				break;
 			case '神崎ミコト':
 				if(data.rarity == 3)	data.permanent = 0;	//	秘蔵写真
 				break;
@@ -729,10 +744,15 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 					$container.append($html);
 					var $token = $container.find('#__token');
 					token = $($token).val();
-					if(token){
-						nextProcess(null, token);
-					}else{
+					var $fcRed = $container.find('dt.fcRed:contains("ガールの所持上限を超えています")');
+					if($fcRed.length > 0){
 						nextProcess(true, null);
+					}else{
+						if(token){
+							nextProcess(null, token);
+						}else{
+							nextProcess(true, null);
+						}
 					}
 				});
 			},
@@ -764,28 +784,35 @@ chrome.runtime.onMessage.addListener(function(message, sender, sendResponse){
 						$container.append($html);
 						var $token = $container.find('#__token');
 						token = $($token).val();
-						var form = $container.find('form[action="/giftbox/giftbox-system-select-recive"]').first();
-						if(token && form){
-							dbh.transaction(function(txn){
-								console.log('Received giftId=' + giftId);
-								txn.executeSql(
-									"DELETE FROM girls WHERE giftId = ?",
-									[ giftId ]
-								);
-							}, function(e){
-								setTimeout(function(){
-									i ++;
-									nextRecord();
-								}, setting.interval + Math.floor(Math.random() * 1000));
-							}, function(){
-								setTimeout(function(){
-									i ++;
-									nextRecord();
-								}, setting.interval + Math.floor(Math.random() * 1000));
-							});
-						}else{
+						var $fcRed = $container.find('dt.fcRed:contains("ガールの所持上限を超えています")');
+						//	これ以上受け取れない
+						if($fcRed.length > 0){
 							i ++;
 							nextRecord(true);
+						}else{
+							if(token){
+								dbh.transaction(function(txn){
+									console.log('Received giftId=' + giftId);
+									txn.executeSql(
+										"DELETE FROM girls WHERE giftId = ?",
+										[ giftId ]
+									);
+								}, function(e){
+									setTimeout(function(){
+										i ++;
+										nextRecord(true);
+									}, setting.interval + Math.floor(Math.random() * 1000));
+								}, function(){
+									setTimeout(function(){
+										i ++;
+										nextRecord();
+									}, setting.interval + Math.floor(Math.random() * 1000));
+								});
+							}else{
+								//	トークンがない
+								i ++;
+								nextRecord(true);
+							}
 						}
 					});
 				}, function(err){
